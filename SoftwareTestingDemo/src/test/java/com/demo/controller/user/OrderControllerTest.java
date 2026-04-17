@@ -30,6 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -137,5 +138,53 @@ class OrderControllerTest {
     void deleteOrderShouldDelegateAndReturnTrue() {
         assertTrue(orderController.delOrder(5));
         verify(orderService).delOrder(5);
+    }
+
+    @Test
+    void addOrderShouldHandleUserIDAtBoundaryLength24() throws Exception {
+        User user = new User();
+        user.setUserID("A".repeat(24));
+        request.getSession().setAttribute("user", user);
+
+        orderController.addOrder("羽毛球馆", "2026-04-20", "2026-04-20 09:00", 2, request, response);
+
+        verify(orderService).submit(eq("羽毛球馆"), eq(LocalDateTime.of(2026, 4, 20, 9, 0)), eq(2), eq("A".repeat(24)));
+        assertEquals("order_manage", response.getRedirectedUrl());
+    }
+
+    @Test
+    void addOrderShouldHandleUserIDAtBoundaryLength25() throws Exception {
+        User user = new User();
+        user.setUserID("A".repeat(25));
+        request.getSession().setAttribute("user", user);
+
+        orderController.addOrder("羽毛球馆", "2026-04-20", "2026-04-20 09:00", 2, request, response);
+
+        verify(orderService).submit(eq("羽毛球馆"), eq(LocalDateTime.of(2026, 4, 20, 9, 0)), eq(2), eq("A".repeat(25)));
+        assertEquals("order_manage", response.getRedirectedUrl());
+    }
+
+    @Test
+    void addOrderShouldHandleUserIDExceedingBoundaryLength26() {
+        User user = new User();
+        user.setUserID("A".repeat(26));
+        request.getSession().setAttribute("user", user);
+
+        RuntimeException ex = assertThrows(RuntimeException.class, () ->
+            orderController.addOrder("羽毛球馆", "2026-04-20", "2026-04-20 09:00", 2, request, response));
+
+        assertEquals("用户ID超出长度上限", ex.getMessage());
+    }
+
+    @Test
+    void addOrderShouldHandleEmptyUserID() {
+        User user = new User();
+        user.setUserID("");
+        request.getSession().setAttribute("user", user);
+
+        RuntimeException ex = assertThrows(RuntimeException.class, () ->
+            orderController.addOrder("羽毛球馆", "2026-04-20", "2026-04-20 09:00", 2, request, response));
+
+        assertEquals("用户ID不能为空", ex.getMessage());
     }
 }

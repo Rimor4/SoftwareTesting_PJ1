@@ -103,4 +103,68 @@ class MessageControllerTest {
         assertEquals(1, message.getState());
         verify(messageService).update(message);
     }
+
+    @Test
+    void sendMessageShouldHandleEmptyUserID() {
+        RuntimeException ex = assertThrows(RuntimeException.class, () ->
+            messageController.sendMessage("", "测试留言", response));
+
+        assertEquals("用户ID不能为空", ex.getMessage());
+    }
+
+    @Test
+    void sendMessageShouldHandleEmptyContent() {
+        RuntimeException ex = assertThrows(RuntimeException.class, () ->
+            messageController.sendMessage("u01", "", response));
+
+        assertEquals("留言内容不能为空", ex.getMessage());
+    }
+
+    @Test
+    void sendMessageShouldHandleUserIDAtBoundaryLength24() throws Exception {
+        messageController.sendMessage("A".repeat(24), "测试留言", response);
+
+        verify(messageService).create(any(Message.class));
+        assertEquals("/message_list", response.getRedirectedUrl());
+    }
+
+    @Test
+    void sendMessageShouldHandleUserIDAtBoundaryLength25() throws Exception {
+        messageController.sendMessage("A".repeat(25), "测试留言", response);
+
+        verify(messageService).create(any(Message.class));
+        assertEquals("/message_list", response.getRedirectedUrl());
+    }
+
+    @Test
+    void sendMessageShouldHandleUserIDExceedingBoundaryLength26() {
+        RuntimeException ex = assertThrows(RuntimeException.class, () ->
+            messageController.sendMessage("A".repeat(26), "测试留言", response));
+
+        assertEquals("用户ID超出长度上限", ex.getMessage());
+    }
+
+    @Test
+    void sendMessageShouldHandleContentAtBoundaryLength4999() throws Exception {
+        messageController.sendMessage("u01", "A".repeat(4999), response);
+
+        verify(messageService).create(any(Message.class));
+        assertEquals("/message_list", response.getRedirectedUrl());
+    }
+
+    @Test
+    void sendMessageShouldHandleContentAtBoundaryLength5000() throws Exception {
+        messageController.sendMessage("u01", "A".repeat(5000), response);
+
+        verify(messageService).create(any(Message.class));
+        assertEquals("/message_list", response.getRedirectedUrl());
+    }
+
+    @Test
+    void sendMessageShouldHandleContentExceedingBoundaryLength5001() {
+        RuntimeException ex = assertThrows(RuntimeException.class, () ->
+            messageController.sendMessage("u01", "A".repeat(5001), response));
+
+        assertEquals("留言超出长度超过上限", ex.getMessage());
+    }
 }

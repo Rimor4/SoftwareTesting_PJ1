@@ -13,9 +13,11 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.mock.web.MockMultipartFile;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -113,5 +115,75 @@ class UserControllerTest {
         when(userService.findByUserID("u01")).thenReturn(user);
 
         assertTrue(userController.checkPassword("u01", "secret"));
+    }
+
+    @Test
+    void registerShouldHandleUserIDAtBoundaryLength254() throws Exception {
+        userController.register("A".repeat(254), "Tom", "123456", "a@test.com", "13800000000", response);
+
+        verify(userService).create(any(User.class));
+        assertTrue(response.getRedirectedUrl().endsWith("login"));
+    }
+
+    @Test
+    void registerShouldHandleUserIDAtBoundaryLength255() throws Exception {
+        userController.register("A".repeat(255), "Tom", "123456", "a@test.com", "13800000000", response);
+
+        verify(userService).create(any(User.class));
+        assertTrue(response.getRedirectedUrl().endsWith("login"));
+    }
+
+    @Test
+    void registerShouldHandleUserIDExceedingBoundaryLength256() {
+        RuntimeException ex = assertThrows(RuntimeException.class, () ->
+            userController.register("A".repeat(256), "Tom", "123456", "a@test.com", "13800000000", response));
+
+        assertEquals("用户ID超出长度上限", ex.getMessage());
+        verify(userService, never()).create(any(User.class));
+    }
+
+    @Test
+    void registerShouldHandlePasswordAtBoundaryLength254() throws Exception {
+        userController.register("u01", "Tom", "P".repeat(254), "a@test.com", "13800000000", response);
+
+        verify(userService).create(any(User.class));
+        assertTrue(response.getRedirectedUrl().endsWith("login"));
+    }
+
+    @Test
+    void registerShouldHandlePasswordAtBoundaryLength255() throws Exception {
+        userController.register("u01", "Tom", "P".repeat(255), "a@test.com", "13800000000", response);
+
+        verify(userService).create(any(User.class));
+        assertTrue(response.getRedirectedUrl().endsWith("login"));
+    }
+
+    @Test
+    void registerShouldHandlePasswordExceedingBoundaryLength256() {
+        RuntimeException ex = assertThrows(RuntimeException.class, () ->
+            userController.register("u01", "Tom", "P".repeat(256), "a@test.com", "13800000000", response));
+
+        assertEquals("密码超出长度上限", ex.getMessage());
+        verify(userService, never()).create(any(User.class));
+    }
+
+    @Test
+    void registerShouldHandleEmptyUserName() throws Exception {
+        userController.register("u01", "", "123456", "a@test.com", "13800000000", response);
+
+        RuntimeException ex = assertThrows(RuntimeException.class, () ->
+            verify(userService).create(any(User.class)));
+        
+        assertEquals("用户名不能为空", ex.getMessage());
+        verify(userService, never()).create(any(User.class));
+    }
+
+    @Test
+    void registerShouldHandleEmptyPassword() {
+        RuntimeException ex = assertThrows(RuntimeException.class, () ->
+            userController.register("u01", "Tom", "", "a@test.com", "13800000000", response));
+
+        assertEquals("密码不能为空", ex.getMessage());
+        verify(userService, never()).create(any(User.class));
     }
 }
