@@ -186,4 +186,15 @@ class UserControllerTest {
         assertEquals("密码不能为空", ex.getMessage());
         verify(userService, never()).create(any(User.class));
     }
+
+    @Test
+    void registerShouldRejectDuplicateUserID() {
+        when(userService.findByUserID("existingUser")).thenReturn(new User());
+
+        RuntimeException ex = assertThrows(RuntimeException.class, () ->
+            userController.register("existingUser", "Tom", "123456", "a@test.com", "13800000000", response));
+
+        assertEquals("用户ID已存在", ex.getMessage());
+        verify(userService, never()).create(any(User.class));
+    }
 }

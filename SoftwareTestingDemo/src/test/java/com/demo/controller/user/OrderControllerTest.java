@@ -187,4 +187,62 @@ class OrderControllerTest {
 
         assertEquals("用户ID不能为空", ex.getMessage());
     }
+
+    @Test
+    void addOrderShouldRejectNegativeHours() {
+        User user = new User();
+        user.setUserID("u01");
+        request.getSession().setAttribute("user", user);
+
+        RuntimeException ex = assertThrows(RuntimeException.class, () ->
+            orderController.addOrder("羽毛球馆", "2026-04-20", "2026-04-20 09:00", -2, request, response));
+
+        assertEquals("预约时长必须为正数", ex.getMessage());
+    }
+
+    @Test
+    void addOrderShouldRejectZeroHours() {
+        User user = new User();
+        user.setUserID("u01");
+        request.getSession().setAttribute("user", user);
+
+        RuntimeException ex = assertThrows(RuntimeException.class, () ->
+            orderController.addOrder("羽毛球馆", "2026-04-20", "2026-04-20 09:00", 0, request, response));
+
+        assertEquals("预约时长必须为正数", ex.getMessage());
+    }
+
+    @Test
+    void modifyOrderShouldRejectUnauthorizedUser() {
+        User userA = new User();
+        userA.setUserID("userA");
+        request.getSession().setAttribute("user", userA);
+
+        Order order = new Order();
+        order.setOrderID(88);
+        order.setUserID("userB");
+        when(orderService.findById(88)).thenReturn(order);
+
+        RuntimeException ex = assertThrows(RuntimeException.class, () ->
+            orderController.modifyOrder("羽毛球馆", "2026-04-20", "2026-04-20 11:00", 3, 88, request, response));
+
+        assertEquals("无权修改他人订单", ex.getMessage());
+    }
+
+    @Test
+    void adminShouldModifyAnyOrder() throws Exception {
+        User admin = new User();
+        admin.setUserID("admin01");
+        admin.setIsadmin(1);
+        request.getSession().setAttribute("user", admin);
+
+        Order order = new Order();
+        order.setOrderID(88);
+        order.setUserID("userB");
+
+        boolean result = orderController.modifyOrder("羽毛球馆", "2026-04-20", "2026-04-20 11:00", 3, 88, request, response);
+
+        assertTrue(result);
+        verify(orderService).updateOrder(eq(88), eq("羽毛球馆"), eq(LocalDateTime.of(2026, 4, 20, 11, 0)), eq(3), eq("admin01"));
+    }
 }
